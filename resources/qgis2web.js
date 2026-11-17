@@ -4,20 +4,18 @@ var map = new ol.Map({
     renderer: 'canvas',
     layers: layersList,
     view: new ol.View({
-        constrainResolution: false,
-        maxZoom: 28,
-        minZoom: 1,
-        
-        projection: new ol.proj.Projection({
+         maxZoom: 28, minZoom: 1, projection: new ol.proj.Projection({
             code: 'EPSG:31984',
-            //extent: [-20026376.390000, -20048966.100000, 20026376.390000, 20048966.100000],
-            units: 'm'
-        })
+            //extent: [551729.120200, 8564878.936411, 555081.597321, 8571571.821974],
+            units: 'm'})
     })
 });
 
 //initial view - epsg:3857 coordinates if not "Match project CRS"
-map.getView().fit([550712.653520, 8564385.679564, 556476.277909, 8568190.306521], map.getSize());
+map.getView().fit([551501.303247, 8564011.953872, 560138.405356, 8568760.662043], map.getSize());
+
+//full zooms only
+map.getView().setProperties({constrainResolution: true});
 
 //change cursor
 function pointerOnFeature(evt) {
@@ -153,15 +151,12 @@ var featureOverlay = new ol.layer.Vector({
 });
 
 var doHighlight = false;
-var doHover = false;
+var doHover = true;
 
 function createPopupField(currentFeature, currentFeatureKeys, layer) {
     var popupText = '';
     for (var i = 0; i < currentFeatureKeys.length; i++) {
-        if (currentFeatureKeys[i] != 'geometry' &&
-            currentFeatureKeys[i] != 'layerObject' &&
-            currentFeatureKeys[i] != 'idO' &&
-            currentFeatureKeys[i] != '_mvtLayer_') {
+        if (currentFeatureKeys[i] != 'geometry' && currentFeatureKeys[i] != 'layerObject' && currentFeatureKeys[i] != 'idO') {
             var popupField = '';
             if (layer.get('fieldLabels')[currentFeatureKeys[i]] == "hidden field") {
                 continue;
@@ -885,14 +880,41 @@ let measuring = false;
 //layerswitcher
 
 var layerSwitcher = new ol.control.LayerSwitcher({
-    tipLabel: "Layers",
-    target: 'top-right-container'
-});
+    activationMode: 'click',
+	startActive: true,
+	tipLabel: "Layers",
+    target: 'top-right-container',
+	collapseLabel: '»',
+	collapseTipLabel: 'Close'
+    });
 map.addControl(layerSwitcher);
-    
+if (hasTouchScreen || isSmallScreen) {
+	document.addEventListener('DOMContentLoaded', function() {
+		setTimeout(function() {
+			layerSwitcher.hidePanel();
+		}, 500);
+	});	
+}
 
 
 
+map.getView().on('change:resolution', function(evt){
+
+            lyr_PERCURSOLAVAGEMDOBONFIM_6.setStyle(style_PERCURSOLAVAGEMDOBONFIM_6);
+});
+
+function m2px(m) {
+    var centerLatLng = map.getView().getCenter();
+    var pointC = map.getPixelFromCoordinate(centerLatLng);
+    var pointX = [pointC[0] + 100, pointC[1]];
+    var latLngC = map.getCoordinateFromPixel(pointC);
+    var latLngX = map.getCoordinateFromPixel(pointX);
+    var lineX = new ol.geom.LineString([latLngC, latLngX]);
+    var distanceX = lineX.getLength() / 100;
+    reciprocal = 1 / distanceX;
+    px = Math.ceil(reciprocal);
+    return px;
+}
 
 
 //attribution
@@ -903,19 +925,16 @@ var bottomAttribution = new ol.control.Attribution({
 });
 map.addControl(bottomAttribution);
 
-map.once('rendercomplete', function() {
-  var bottomAttributionUl = bottomAttribution.element.querySelector('ul');
-  if (bottomAttributionUl) {
-    var layerAttrs = Array.from(bottomAttributionUl.querySelectorAll('li'))
-      .map(function(li) { return li.innerHTML.trim(); }).filter(Boolean);
-    var attribHtml = `
-    <a href="https://github.com/qgis2web/qgis2web">qgis2web</a> &middot;
-    <a href="https://openlayers.org/">OpenLayers</a> &middot;
-    <a href="https://qgis.org/">QGIS</a>`;
-    if (layerAttrs.length > 0) { attribHtml += ' &nbsp;|&nbsp; ' + layerAttrs.join(', '); }
-    bottomAttributionUl.innerHTML = '<li>' + attribHtml + '</li>';
-  }
-});
+var attributionList = document.createElement('li');
+attributionList.innerHTML = `
+	<a href="https://github.com/qgis2web/qgis2web">qgis2web</a> &middot;
+	<a href="https://openlayers.org/">OpenLayers</a> &middot;
+	<a href="https://qgis.org/">QGIS</a>	
+`;
+var bottomAttributionUl = bottomAttribution.element.querySelector('ul');
+if (bottomAttributionUl) {
+  bottomAttribution.element.insertBefore(attributionList, bottomAttributionUl);
+}
 
 
 // Disable "popup on hover" or "highlight on hover" if ol-control mouseover
